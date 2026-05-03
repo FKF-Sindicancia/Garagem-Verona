@@ -30,6 +30,31 @@
       min-height: 100vh;
       font-size: 15px;
     }
+    /* Login */
+    .login-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 1rem;
+    }
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+    }
+    .login-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+    .login-card h2 { font-size: 20px; margin-bottom: 4px; }
+    .login-card p { color: var(--text-muted); font-size: 13px; margin-bottom: 1rem; }
+    .login-error { color: var(--danger); font-size: 12px; margin-top: 8px; min-height: 18px; }
+    .login-help { font-size: 12px; color: var(--text-muted); margin-top: 12px; line-height: 1.4; }
     /* Header */
     .header {
       background: var(--surface);
@@ -44,9 +69,11 @@
       z-index: 100;
     }
     .header-left { display: flex; align-items: center; gap: 10px; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
     .logo-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brand); }
     .header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
     .header-clock { font-size: 13px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+    .user-email { font-size: 12px; color: var(--text-muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Layout */
     .container { max-width: 960px; margin: 0 auto; padding: 1.5rem; }
     /* Tabs */
@@ -104,6 +131,8 @@
     .btn-export { background: var(--brand-light); color: var(--brand-dark); border: 1px solid var(--brand); font-size: 13px; }
     .btn-export:hover { background: var(--brand); color: white; }
     .btn-import { background: var(--bg); color: var(--text); border: 1px solid var(--border); font-size: 13px; }
+    .btn-logout { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); font-size: 12px; padding: 7px 10px; }
+    .btn-logout:hover { background: var(--danger-light); color: var(--danger); border-color: #F09595; }
     /* Stats */
     .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1rem; }
     .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
@@ -163,19 +192,39 @@
       .form-grid { grid-template-columns: 1fr; }
       .form-group.full { grid-column: 1; }
       .stats { grid-template-columns: repeat(2, 1fr); }
-      .header-clock { display: none; }
+      .header-clock, .user-email { display: none; }
       .tabs { overflow-x: auto; }
     }
   </style>
 </head>
 <body>
 
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-dot"></div>
+      <strong>Garagem — Tenda Verona</strong>
+    </div>
+    <h2>Acesso restrito</h2>
+    <p>Entre com o usuário autorizado para acessar o painel.</p>
+    <input id="login-email" type="email" placeholder="E-mail" autocomplete="email">
+    <input id="login-senha" type="password" placeholder="Senha" autocomplete="current-password" style="margin-top:10px;">
+    <button class="btn btn-primary" id="btn-login" onclick="fazerLogin()">Entrar</button>
+    <div class="login-error" id="login-erro"></div>
+    <div class="login-help">Usuários devem ser criados no Firebase Authentication.</div>
+  </div>
+</div>
+
 <div class="header">
   <div class="header-left">
     <div class="logo-dot"></div>
     <h1>Garagem — Tenda Verona</h1>
   </div>
-  <span class="header-clock" id="clock"></span>
+  <div class="header-right">
+    <span class="user-email" id="user-email"></span>
+    <span class="header-clock" id="clock"></span>
+    <button class="btn btn-logout" onclick="sair()">Sair</button>
+  </div>
 </div>
 
 <div class="container">
@@ -280,7 +329,7 @@
             <th></th>
           </tr>
         </thead>
-        <tbody id="tabela-body"><tr><td colspan="9" class="loading">Carregando registros...</td></tr></tbody>
+        <tbody id="tabela-body"><tr><td colspan="9" class="loading">Faça login para carregar registros...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -300,7 +349,7 @@
         <thead>
           <tr><th>Placa</th><th>Morador</th><th>Apto</th><th>Torre</th><th>Origem</th></tr>
         </thead>
-        <tbody id="placas-body"><tr><td colspan="5" class="loading">Carregando placas...</td></tr></tbody>
+        <tbody id="placas-body"><tr><td colspan="5" class="loading">Faça login para carregar placas...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -312,6 +361,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
   import { getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAg-NL6ECEgLatPvISBk5d67bMYEMnBv1o",
@@ -324,8 +374,13 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app);
 
   window._db = db;
+  window._auth = auth;
+  window._login = signInWithEmailAndPassword;
+  window._onAuth = onAuthStateChanged;
+  window._signOut = signOut;
   window._col = (name) => collection(db, name);
   window._addDoc = addDoc;
   window._updateDoc = updateDoc;
@@ -348,6 +403,7 @@
   let filtroAtual = 'todos';
   let buscaAtual = '';
   let unsubRegistros = null;
+  let usuarioLogado = null;
 
   function toast(msg) {
     const t = document.getElementById('toast');
@@ -365,30 +421,117 @@
   setInterval(updateClock, 30000);
   updateClock();
 
+  function configurarAuthQuandoFirebaseCarregar() {
+    if(!window._firebaseReady) {
+      window.addEventListener('firebaseReady', configurarAuthQuandoFirebaseCarregar);
+      return;
+    }
+
+    window._onAuth(window._auth, async (user) => {
+      usuarioLogado = user;
+
+      if (user) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('user-email').textContent = user.email || '';
+        toast('Login realizado!');
+        await carregarPlacas();
+        iniciarListener();
+      } else {
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('user-email').textContent = '';
+        registros = [];
+        placasCad = [];
+        if (unsubRegistros) {
+          unsubRegistros();
+          unsubRegistros = null;
+        }
+        document.getElementById('tabela-body').innerHTML = '<tr><td colspan="9" class="loading">Faça login para carregar registros...</td></tr>';
+        document.getElementById('placas-body').innerHTML = '<tr><td colspan="5" class="loading">Faça login para carregar placas...</td></tr>';
+      }
+    });
+  }
+  configurarAuthQuandoFirebaseCarregar();
+
+  async function fazerLogin() {
+    if(!window._firebaseReady) { return; }
+
+    const email = document.getElementById('login-email').value.trim();
+    const senha = document.getElementById('login-senha').value;
+    const erro = document.getElementById('login-erro');
+    const btn = document.getElementById('btn-login');
+
+    erro.textContent = '';
+
+    if(!email || !senha) {
+      erro.textContent = 'Informe e-mail e senha.';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Entrando...';
+
+    try {
+      await window._login(window._auth, email, senha);
+      document.getElementById('login-senha').value = '';
+    } catch (e) {
+      erro.textContent = 'Login inválido ou usuário sem permissão.';
+      console.error(e);
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
+
+  async function sair() {
+    if(!window._firebaseReady) return;
+    try {
+      await window._signOut(window._auth);
+      toast('Você saiu do sistema.');
+    } catch(e) {
+      toast('Erro ao sair.');
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if(e.key === 'Enter' && document.getElementById('login-screen').style.display !== 'none') {
+      fazerLogin();
+    }
+  });
+
   function switchTab(t) {
     document.querySelectorAll('.tab').forEach((b,i) => b.classList.toggle('active', ['entrada','dashboard','placas'][i]===t));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.getElementById('tab-'+t).classList.add('active');
+    if(!usuarioLogado) return;
     if(t==='dashboard') iniciarListener();
     if(t==='placas') carregarPlacas();
   }
 
   function iniciarListener() {
+    if(!usuarioLogado) return;
     if(unsubRegistros) return;
     if(!window._firebaseReady) { window.addEventListener('firebaseReady', iniciarListener); return; }
-    const hoje = new Date(); hoje.setHours(0,0,0,0);
     const q = window._query(window._col('registros'), window._orderBy('entrada','desc'));
     unsubRegistros = window._onSnapshot(q, snap => {
       registros = snap.docs.map(d => ({id: d.id, ...d.data(), entrada: d.data().entrada?.toDate(), saida: d.data().saida?.toDate()||null}));
       renderTabela();
+    }, error => {
+      console.error(error);
+      toast('Sem permissão para carregar registros.');
     });
   }
 
   async function carregarPlacas() {
+    if(!usuarioLogado) return;
     if(!window._firebaseReady) { window.addEventListener('firebaseReady', carregarPlacas); return; }
-    const snap = await window._getDocs(window._col('placas'));
-    placasCad = snap.docs.map(d => ({id: d.id, ...d.data()}));
-    renderPlacas();
+    try {
+      const snap = await window._getDocs(window._col('placas'));
+      placasCad = snap.docs.map(d => ({id: d.id, ...d.data()}));
+      renderPlacas();
+    } catch(e) {
+      console.error(e);
+      toast('Sem permissão para carregar placas.');
+    }
   }
 
   function checkPlaca(el) {
@@ -420,6 +563,7 @@
   }
 
   async function registrarEntrada() {
+    if(!usuarioLogado) { toast('Faça login para registrar.'); return; }
     if(!window._firebaseReady) { toast('Firebase ainda carregando, aguarde...'); return; }
     const placa = document.getElementById('placa').value.trim().toUpperCase();
     if(!placa) { toast('Informe a placa do veículo!'); return; }
@@ -434,7 +578,8 @@
       cor: corSel,
       obs: document.getElementById('obs').value.trim(),
       entrada: new Date(),
-      saida: null
+      saida: null,
+      criadoPor: usuarioLogado.email || ''
     };
     try {
       await window._addDoc(window._col('registros'), dados);
@@ -456,16 +601,17 @@
       toast('Entrada registrada!');
       switchTab('dashboard');
     } catch(e) {
-      toast('Erro ao salvar. Verifique a conexão.');
+      toast('Erro ao salvar. Verifique a conexão/permissão.');
       console.error(e);
     }
     btn.disabled = false; btn.textContent = 'Registrar entrada';
   }
 
   async function registrarSaida(id) {
+    if(!usuarioLogado) { toast('Faça login para registrar saída.'); return; }
     if(!window._firebaseReady) return;
     try {
-      await window._updateDoc(window._doc('registros', id), { saida: new Date() });
+      await window._updateDoc(window._doc('registros', id), { saida: new Date(), saidaPor: usuarioLogado.email || '' });
       toast('Saída registrada!');
     } catch(e) { toast('Erro ao registrar saída.'); }
   }
@@ -595,6 +741,7 @@
   }
 
   function processCSV(e) {
+    if(!usuarioLogado) { toast('Faça login para importar placas.'); return; }
     const file = e.target.files[0];
     if(!file) return;
     const reader = new FileReader();
@@ -622,6 +769,8 @@
     e.target.value = '';
   }
 
+  window.fazerLogin = fazerLogin;
+  window.sair = sair;
   window.switchTab = switchTab;
   window.checkPlaca = checkPlaca;
   window.selMarca = selMarca;
@@ -634,7 +783,7 @@
   window.processCSV = processCSV;
 
   setInterval(() => {
-    if(document.getElementById('tab-dashboard').classList.contains('active')) renderTabela();
+    if(usuarioLogado && document.getElementById('tab-dashboard').classList.contains('active')) renderTabela();
   }, 60000);
 </script>
 </body>
