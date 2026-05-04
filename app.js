@@ -70,13 +70,14 @@ function aplicarPermissoesUI() {
   if (isViewOnly()) {
     if (entradaTab) entradaTab.style.display = 'none';
     if (btnRegistrar) btnRegistrar.style.display = 'none';
-    if (importCard) importCard.style.display = 'none';
     switchTab('dashboard');
   } else {
     if (entradaTab) entradaTab.style.display = '';
     if (btnRegistrar) btnRegistrar.style.display = '';
-    if (importCard) importCard.style.display = '';
   }
+
+  // Importação do Ucondo deve aparecer apenas para admin
+  if (importCard) importCard.style.display = isAdmin() ? '' : 'none';
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -463,7 +464,7 @@ function renderTabela() {
 
   const alertExc = document.getElementById('alert-exc');
   alertExc.style.display = excedidos > 0 ? 'block' : 'none';
-  alertExc.textContent = excedidos + ' veículo(s) excederam o tempo permitido — Não esquecer de marcar saída!';
+  alertExc.textContent = excedidos + ' veículo(s) excederam o tempo permitido — informação para acompanhamento.';
 
   renderDashboardHead();
   const tbody = document.getElementById('tabela-body');
@@ -580,7 +581,7 @@ function exportarCSV() {
 
 function processCSV(e) {
   if (!usuarioLogado) { toast('Faça login para importar placas.'); return; }
-  if (!canWrite()) { toast('Usuário sem permissão para importar placas.'); return; }
+  if (!isAdmin()) { toast('Somente admin pode importar placas.'); return; }
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
