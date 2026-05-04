@@ -458,9 +458,15 @@ function renderTabela() {
   alertInc.style.display = incompletos > 0 ? 'block' : 'none';
   alertInc.textContent = incompletos + ' registro(s) com dados incompletos — completar nome, marca e cor antes de finalizar.';
 
-  const alertQuase = document.getElementById('alert-quase');
-  alertQuase.style.display = quase > 0 ? 'block' : 'none';
-  alertQuase.textContent = quase + ' veículo(s) estão próximos de exceder o tempo permitido.';
+ const alertQuase = document.getElementById('alert-quase');
+
+if (isPortaria() && quase > 0) {
+  alertQuase.style.display = 'block';
+  alertQuase.textContent =
+    quase + ' veículo(s) estão próximos de exceder o tempo permitido.';
+} else {
+  alertQuase.style.display = 'none';
+}
 
   const alertExc = document.getElementById('alert-exc');
 
