@@ -382,14 +382,14 @@ function getStatus(r) {
   const mins = calcMins(r.entrada, r.saida);
   if (r.saida) return mins > 60 ? 'excedido' : 'saiu';
   if (mins > 60) return 'excedido';
-  if (mins > 50) return 'atencao';
+  if (mins >= 45) return 'atencao';
   return 'dentro';
 }
 function badgeStatus(r) {
   if (isIncompleto(r) && !r.saida) return '<span class="badge badge-inc">incompleto</span>';
   const s = getStatus(r);
   if (s === 'excedido') return '<span class="badge badge-danger">excedido</span>';
-  if (s === 'atencao') return '<span class="badge badge-warn">quase 1h</span>';
+  if (s === 'atencao') return '<span class="badge badge-warn">quase excedendo</span>';
   if (s === 'dentro') return '<span class="badge badge-in">no local</span>';
   return '<span class="badge badge-ok">saiu</span>';
 }
@@ -437,21 +437,33 @@ async function toggleMultaEnviada(id, checked) {
 function renderTabela() {
   let lista = [...registros];
   if (filtroAtual === 'dentro') lista = lista.filter((r) => !r.saida);
+  if (filtroAtual === 'quase') lista = lista.filter((r) => getStatus(r) === 'atencao');
   if (filtroAtual === 'excedidos') lista = lista.filter((r) => getStatus(r) === 'excedido');
   if (filtroAtual === 'incompletos') lista = lista.filter((r) => isIncompleto(r) && !r.saida);
   if (buscaAtual) lista = lista.filter((r) => (r.placa + r.nome + r.apto + r.torre + r.marca + r.cor).toLowerCase().includes(buscaAtual));
 
-  document.getElementById('s-total').textContent = registros.length;
-  document.getElementById('s-dentro').textContent = registros.filter((r) => !r.saida).length;
-  document.getElementById('s-exc').textContent = registros.filter((r) => getStatus(r) === 'excedido').length;
-  document.getElementById('s-inc').textContent = registros.filter((r) => isIncompleto(r) && !r.saida).length;
-
+  const saidasPendentes = registros.filter((r) => !r.saida).length;
+  const quase = registros.filter((r) => getStatus(r) === 'atencao').length;
   const excedidos = registros.filter((r) => getStatus(r) === 'excedido').length;
   const incompletos = registros.filter((r) => isIncompleto(r) && !r.saida).length;
-  document.getElementById('alert-exc').style.display = excedidos > 0 ? 'block' : 'none';
-  document.getElementById('alert-exc').textContent = excedidos + ' veículo(s) com permanência excedida — verificar imediatamente.';
-  document.getElementById('alert-inc').style.display = incompletos > 0 ? 'block' : 'none';
-  document.getElementById('alert-inc').textContent = incompletos + ' registro(s) incompleto(s) — solicitar ao porteiro que complete os dados.';
+
+  document.getElementById('s-total').textContent = registros.length;
+  document.getElementById('s-dentro').textContent = saidasPendentes;
+  document.getElementById('s-quase').textContent = quase;
+  document.getElementById('s-exc').textContent = excedidos;
+  document.getElementById('s-inc').textContent = incompletos;
+
+  const alertInc = document.getElementById('alert-inc');
+  alertInc.style.display = incompletos > 0 ? 'block' : 'none';
+  alertInc.textContent = incompletos + ' registro(s) com dados incompletos — completar nome, marca e cor antes de finalizar.';
+
+  const alertQuase = document.getElementById('alert-quase');
+  alertQuase.style.display = quase > 0 ? 'block' : 'none';
+  alertQuase.textContent = quase + ' veículo(s) estão próximos de exceder o tempo permitido.';
+
+  const alertExc = document.getElementById('alert-exc');
+  alertExc.style.display = excedidos > 0 ? 'block' : 'none';
+  alertExc.textContent = excedidos + ' veículo(s) excederam o tempo permitido — Não esquecer de marcar saída!';
 
   renderDashboardHead();
   const tbody = document.getElementById('tabela-body');

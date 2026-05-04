@@ -48,7 +48,7 @@ textarea { resize: none; }
 .btn-export:hover { background: var(--brand); color: white; }
 .btn-logout { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); font-size: 12px; padding: 7px 10px; }
 .btn-logout:hover { background: var(--danger-light); color: var(--danger); border-color: #F09595; }
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1rem; }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 1rem; }
 .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
 .stat-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
 .stat-value { font-size: 28px; font-weight: 600; color: var(--text); font-family: 'DM Mono', monospace; }

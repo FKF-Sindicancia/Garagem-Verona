@@ -107,16 +107,19 @@
     <div id="tab-dashboard" class="panel">
       <div class="stats" id="stats">
         <div class="stat"><div class="stat-label">Total hoje</div><div class="stat-value" id="s-total">—</div></div>
-        <div class="stat"><div class="stat-label">No local</div><div class="stat-value" id="s-dentro">—</div></div>
+        <div class="stat"><div class="stat-label">Saídas pendentes</div><div class="stat-value" id="s-dentro">—</div></div>
+        <div class="stat"><div class="stat-label">Quase excedendo</div><div class="stat-value warn" id="s-quase">—</div></div>
         <div class="stat"><div class="stat-label">Excedidos</div><div class="stat-value danger" id="s-exc">—</div></div>
-        <div class="stat"><div class="stat-label">Incompletos</div><div class="stat-value warn" id="s-inc">—</div></div>
+        <div class="stat"><div class="stat-label">Dados incompletos</div><div class="stat-value warn" id="s-inc">—</div></div>
       </div>
-      <div class="alert alert-danger" id="alert-exc"></div>
       <div class="alert alert-warn" id="alert-inc"></div>
+      <div class="alert alert-warn" id="alert-quase"></div>
+      <div class="alert alert-danger" id="alert-exc"></div>
       <div class="toolbar">
         <input type="text" placeholder="Buscar por placa, nome ou apto..." oninput="filtrarTabela(this.value)" id="search-input" style="max-width:260px;">
         <button class="filter-btn active" onclick="setFiltro('todos',this)">Todos</button>
-        <button class="filter-btn" onclick="setFiltro('dentro',this)">No local</button>
+        <button class="filter-btn" onclick="setFiltro('dentro',this)">Saídas pendentes</button>
+        <button class="filter-btn" onclick="setFiltro('quase',this)">Quase excedendo</button>
         <button class="filter-btn" onclick="setFiltro('excedidos',this)">Excedidos</button>
         <button class="filter-btn" onclick="setFiltro('incompletos',this)">Incompletos</button>
         <button class="btn btn-export" onclick="exportarCSV()">Exportar CSV</button>
