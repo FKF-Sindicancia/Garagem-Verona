@@ -463,8 +463,14 @@ function renderTabela() {
   alertQuase.textContent = quase + ' veículo(s) estão próximos de exceder o tempo permitido.';
 
   const alertExc = document.getElementById('alert-exc');
-  alertExc.style.display = excedidos > 0 ? 'block' : 'none';
-  alertExc.textContent = excedidos + ' veículo(s) excederam o tempo permitido — informação para acompanhamento.';
+
+if (isPortaria() && excedidos > 0) {
+  alertExc.style.display = 'block';
+  alertExc.textContent =
+    excedidos + ' veículo(s) com permanência excedida — Não esquecer de marcar saída!';
+} else {
+  alertExc.style.display = 'none';
+}
 
   renderDashboardHead();
   const tbody = document.getElementById('tabela-body');
