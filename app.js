@@ -43,7 +43,7 @@ function isViewOnly() { return userRole === 'viewer' || userRole === 'view only'
 function canWrite() { return isAdmin() || isPortaria(); }
 function canSeeMultaEnviada() { return isAdmin() || isViewOnly(); }
 function shouldShowMultaOption(registro) {
-  return canSeeMultaEnviada() && calcMins(registro.entrada, registro.saida) > 30;
+  return canSeeMultaEnviada() && calcMins(registro.entrada, registro.saida) > 75;
 }
 
 function toast(msg) {
