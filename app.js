@@ -326,6 +326,44 @@ async function registrarSaida(id) {
   }
 }
 
+async function registrarSaidaManual(id, value) {
+  if (!usuarioLogado) { toast('Faça login para registrar saída.'); return; }
+  if (!isAdmin()) { toast('Somente admin pode definir horário de saída manual.'); return; }
+  if (!value) return;
+
+  const dataSaida = new Date(value);
+  if (Number.isNaN(dataSaida.getTime())) {
+    toast('Horário de saída inválido.');
+    return;
+  }
+
+  try {
+    await updateDoc(doc(db, 'registros', id), {
+      saida: dataSaida,
+      saidaPor: usuarioLogado.email || '',
+      saidaManual: true
+    });
+    toast('Saída manual registrada!');
+  } catch (e) {
+    console.error(e);
+    toast('Erro ao registrar saída manual.');
+  }
+}
+
+function renderAcaoSaida(r) {
+  if (r.saida) return '';
+
+  if (isAdmin()) {
+    return '<input type="datetime-local" onchange="registrarSaidaManual(\'' + r.id + '\', this.value)" style="font-size:12px;padding:4px;min-width:165px;">';
+  }
+
+  if (isPortaria()) {
+    return '<button class="btn btn-saida" onclick="registrarSaida(\'' + r.id + '\')">Registrar saída</button>';
+  }
+
+  return '';
+}
+
 function formatTime(d) {
   if (!d) return '—';
   return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -434,7 +472,7 @@ function renderTabela() {
       <td style="font-family:'DM Mono',monospace;font-weight:${calcMins(r.entrada, r.saida) > 60 ? '600' : '400'};color:${calcMins(r.entrada, r.saida) > 60 ? 'var(--danger)' : 'inherit'}">${calcTempo(r.entrada, r.saida)}</td>
       <td>${badgeStatus(r)}</td>
       ${canSeeMultaEnviada() ? `<td>${shouldShowMultaOption(r) ? '<input type="checkbox" ' + (r.multaEnviada ? 'checked' : '') + ' ' + (isAdmin() ? '' : 'disabled') + ' onchange="toggleMultaEnviada(\'' + r.id + '\', this.checked)">' : '—'}</td>` : ''}
-      <td>${(!r.saida && canWrite()) ? '<button class="btn btn-saida" onclick="registrarSaida(\'' + r.id + '\')">Registrar saída</button>' : ''}</td>
+      <td>${renderAcaoSaida(r)}</td>
     </tr>`).join('');
 }
 
@@ -561,6 +599,7 @@ window.selMarca = selMarca;
 window.selCor = selCor;
 window.registrarEntrada = registrarEntrada;
 window.registrarSaida = registrarSaida;
+window.registrarSaidaManual = registrarSaidaManual;
 window.toggleMultaEnviada = toggleMultaEnviada;
 window.setFiltro = setFiltro;
 window.filtrarTabela = filtrarTabela;
