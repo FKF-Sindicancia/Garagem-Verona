@@ -415,7 +415,8 @@ function renderDashboardHead() {
   document.getElementById('dashboard-head').innerHTML = `
     <tr>
       <th>Placa</th><th>Motorista</th><th>Apto / Torre</th><th>Marca / Cor</th>
-      <th>Entrada</th><th>Saída</th><th>Tempo</th><th>Status</th>
+      <th>Data entrada</th><th>Entrada</th><th>Data saída</th><th>Saída</th>
+      <th>Tempo</th><th>Status</th>
       ${canSeeMultaEnviada() ? '<th>Multa enviada</th>' : ''}
       ${isAdmin() ? '<th>Selecionar</th>' : ''}
       <th></th>
@@ -518,7 +519,33 @@ function renderTabela() {
   const excedidos = registros.filter((r) => getStatus(r) === 'excedido').length;
   const incompletos = registros.filter((r) => isIncompleto(r) && !r.saida).length;
 
-  document.getElementById('s-total').textContent = registros.length;
+  const hoje = new Date();
+
+const inicioHoje = new Date(
+  hoje.getFullYear(),
+  hoje.getMonth(),
+  hoje.getDate(),
+  0, 0, 0
+);
+
+const fimHoje = new Date(
+  hoje.getFullYear(),
+  hoje.getMonth(),
+  hoje.getDate(),
+  23, 59, 59
+);
+
+const totalHoje = registros.filter(r => {
+  const entrada = r.entrada instanceof Date
+    ? r.entrada
+    : new Date(r.entrada);
+
+  return entrada >= inicioHoje && entrada <= fimHoje;
+}).length;
+
+document.getElementById('s-total').textContent = totalHoje;
+
+  //document.getElementById('s-total').textContent = registros.length;
   document.getElementById('s-dentro').textContent = saidasPendentes;
   document.getElementById('s-quase').textContent = quase;
   document.getElementById('s-exc').textContent = excedidos;
@@ -544,7 +571,7 @@ if (isPortaria() && excedidos > 0) {
 
   renderDashboardHead();
   const tbody = document.getElementById('tabela-body');
-  const colspan = 9 + (canSeeMultaEnviada() ? 1 : 0) + (isAdmin() ? 1 : 0);
+  const colspan = 11 + (canSeeMultaEnviada() ? 1 : 0) + (isAdmin() ? 1 : 0);
   if (lista.length === 0) {
     tbody.innerHTML = '<tr><td colspan="' + colspan + '" class="loading">Nenhum registro encontrado.</td></tr>';
     return;
@@ -556,7 +583,9 @@ if (isPortaria() && excedidos > 0) {
       <td style="color:${r.nome ? 'inherit' : 'var(--text-muted)'}">${r.nome || '<em>não informado</em>'}</td>
       <td>${r.apto && r.torre ? r.apto + ' / ' + r.torre : r.apto || r.torre || '—'}</td>
       <td>${r.marca || '—'}${r.cor ? ' <span style="font-size:11px;color:var(--text-muted)">' + r.cor + '</span>' : ''}</td>
+      <td style="font-family:'DM Mono',monospace">${formatDate(r.entrada)}</td>
       <td style="font-family:'DM Mono',monospace">${formatTime(r.entrada)}</td>
+      <td style="font-family:'DM Mono',monospace">${formatDate(r.saida)}</td>
       <td style="font-family:'DM Mono',monospace">${formatTime(r.saida)}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:${calcMins(r.entrada, r.saida) > 60 ? '600' : '400'};color:${calcMins(r.entrada, r.saida) > 60 ? 'var(--danger)' : 'inherit'}">${calcTempo(r.entrada, r.saida)}</td>
       <td>${badgeStatus(r)}</td>
