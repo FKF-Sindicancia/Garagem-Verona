@@ -30,6 +30,7 @@ let unsubRegistros = null;
 let usuarioLogado = null;
 let userRole = null;
 let placaEditando = null;
+let multasSelecionadas = new Set();
 
 function normalizarRole(role) {
   return (role || '').toString().trim().toLowerCase();
@@ -66,6 +67,9 @@ function aplicarPermissoesUI() {
   const entradaTab = document.querySelector('[data-tab-button="entrada"]');
   const btnRegistrar = document.getElementById('btn-registrar');
   const importCard = document.getElementById('import-card');
+  const btnGerarEmailMultas = document.getElementById('btn-gerar-email-multas');
+
+  if (btnGerarEmailMultas) btnGerarEmailMultas.style.display = isAdmin() ? '' : 'none';
 
   if (isViewOnly()) {
     if (entradaTab) entradaTab.style.display = 'none';
@@ -107,6 +111,7 @@ onAuthStateChanged(auth, async (user) => {
     placasCad = [];
     userRole = null;
     placaEditando = null;
+    multasSelecionadas = new Set();
     if (unsubRegistros) {
       unsubRegistros();
       unsubRegistros = null;
@@ -412,6 +417,7 @@ function renderDashboardHead() {
       <th>Placa</th><th>Motorista</th><th>Apto / Torre</th><th>Marca / Cor</th>
       <th>Entrada</th><th>Saída</th><th>Tempo</th><th>Status</th>
       ${canSeeMultaEnviada() ? '<th>Multa enviada</th>' : ''}
+      ${isAdmin() ? '<th>Selecionar</th>' : ''}
       <th></th>
     </tr>`;
 }
@@ -432,6 +438,70 @@ async function toggleMultaEnviada(id, checked) {
   } catch (e) {
     console.error(e);
     toast('Erro ao atualizar multa enviada.');
+  }
+}
+
+function toggleSelecionarMulta(id, checked) {
+  if (!isAdmin()) {
+    toast('Somente admin pode selecionar multas para e-mail.');
+    renderTabela();
+    return;
+  }
+
+  if (checked) multasSelecionadas.add(id);
+  else multasSelecionadas.delete(id);
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+function formatarTorre(torre) {
+  const valor = (torre || '').toString().trim().toUpperCase();
+  if (!valor) return '—';
+  if (valor === 'T1' || valor === 'T2' || valor === 'T3') return valor;
+  const numero = valor.match(/[123]/)?.[0];
+  return numero ? 'T' + numero : valor;
+}
+
+function gerarLinhaMulta(r) {
+  const aptoTorre = (r.apto || '—') + '-' + formatarTorre(r.torre);
+  const data = formatDate(r.entrada);
+  const entrada = formatTime(r.entrada);
+  const placa = normalizarPlaca(r.placa);
+
+  if (r.saida) {
+    return 'APTO ' + aptoTorre + ': No dia ' + data + ', morador acessou o estacionamento com o veículo de placa ' + placa + ' às ' + entrada + ' e deixou o local somente às ' + formatTime(r.saida) + '. A unidade deverá ser multada, conforme Capítulo IV, Seção 3, Art. 74, §4º.';
+  }
+
+  return 'APTO ' + aptoTorre + ': No dia ' + data + ', morador acessou o estacionamento com o veículo de placa ' + placa + ' às ' + entrada + ' e permanece com saída pendente no sistema. A unidade deverá ser multada, conforme Capítulo IV, Seção 3, Art. 74, §4º.';
+}
+
+async function gerarEmailMultas() {
+  if (!isAdmin()) {
+    toast('Somente admin pode gerar e-mail de multas.');
+    return;
+  }
+
+  const selecionados = registros
+    .filter((r) => multasSelecionadas.has(r.id))
+    .filter((r) => shouldShowMultaOption(r));
+
+  if (selecionados.length === 0) {
+    toast('Selecione pelo menos uma multa elegível.');
+    return;
+  }
+
+  const linhas = selecionados.map(gerarLinhaMulta);
+  const texto = 'Prezados,\n\nSegue relação de unidades para aplicação de multa:\n\n' + linhas.join('\n\n') + '\n\nAtenciosamente,';
+
+  try {
+    await navigator.clipboard.writeText(texto);
+    toast('Texto do e-mail copiado!');
+  } catch (e) {
+    console.error(e);
+    window.prompt('Copie o texto abaixo:', texto);
   }
 }
 
@@ -458,15 +528,9 @@ function renderTabela() {
   alertInc.style.display = incompletos > 0 ? 'block' : 'none';
   alertInc.textContent = incompletos + ' registro(s) com dados incompletos — completar nome, marca e cor antes de finalizar.';
 
- const alertQuase = document.getElementById('alert-quase');
-
-if (isPortaria() && quase > 0) {
-  alertQuase.style.display = 'block';
-  alertQuase.textContent =
-    quase + ' veículo(s) estão próximos de exceder o tempo permitido.';
-} else {
-  alertQuase.style.display = 'none';
-}
+  const alertQuase = document.getElementById('alert-quase');
+  alertQuase.style.display = quase > 0 ? 'block' : 'none';
+  alertQuase.textContent = quase + ' veículo(s) estão próximos de exceder o tempo permitido.';
 
   const alertExc = document.getElementById('alert-exc');
 
@@ -480,7 +544,7 @@ if (isPortaria() && excedidos > 0) {
 
   renderDashboardHead();
   const tbody = document.getElementById('tabela-body');
-  const colspan = canSeeMultaEnviada() ? 10 : 9;
+  const colspan = 9 + (canSeeMultaEnviada() ? 1 : 0) + (isAdmin() ? 1 : 0);
   if (lista.length === 0) {
     tbody.innerHTML = '<tr><td colspan="' + colspan + '" class="loading">Nenhum registro encontrado.</td></tr>';
     return;
@@ -496,7 +560,8 @@ if (isPortaria() && excedidos > 0) {
       <td style="font-family:'DM Mono',monospace">${formatTime(r.saida)}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:${calcMins(r.entrada, r.saida) > 60 ? '600' : '400'};color:${calcMins(r.entrada, r.saida) > 60 ? 'var(--danger)' : 'inherit'}">${calcTempo(r.entrada, r.saida)}</td>
       <td>${badgeStatus(r)}</td>
-      ${canSeeMultaEnviada() ? `<td>${shouldShowMultaOption(r) ? '<input type="checkbox" ' + (r.multaEnviada ? 'checked' : '') + ' ' + (isAdmin() ? '' : 'disabled') + ' onchange="toggleMultaEnviada(\'' + r.id + '\', this.checked)">' : '—'}</td>` : ''}
+      ${canSeeMultaEnviada() ? `<td>${shouldShowMultaOption(r) ? '<input type="checkbox" ' + (r.multaEnviada ? 'checked' : '') + ' ' + (isAdmin() ? '' : 'disabled') + ' onchange="toggleMultaEnviada(\'' + r.id + '\', this.checked)">' : '<span style="color:var(--text-muted);font-size:12px;">Dentro do período permitido</span>'}</td>` : ''}
+      ${isAdmin() ? `<td>${shouldShowMultaOption(r) ? '<input type="checkbox" ' + (multasSelecionadas.has(r.id) ? 'checked' : '') + ' onchange="toggleSelecionarMulta(\'' + r.id + '\', this.checked)">' : '—'}</td>` : ''}
       <td>${renderAcaoSaida(r)}</td>
     </tr>`).join('');
 }
@@ -626,6 +691,8 @@ window.registrarEntrada = registrarEntrada;
 window.registrarSaida = registrarSaida;
 window.registrarSaidaManual = registrarSaidaManual;
 window.toggleMultaEnviada = toggleMultaEnviada;
+window.toggleSelecionarMulta = toggleSelecionarMulta;
+window.gerarEmailMultas = gerarEmailMultas;
 window.setFiltro = setFiltro;
 window.filtrarTabela = filtrarTabela;
 window.exportarCSV = exportarCSV;
